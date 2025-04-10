@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ImageShrink: Smart Photo Compressor</title>
+    <meta name="description" content="Effortlessly crop and compress your photos while maintaining quality. Save storage space and optimize images for easy sharing.">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAA7AAAAOwBeShxvQAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAJUSURBVFiF7ZdNSBRhGMd/M7vruu6qudvmhyzrEEVEQV0iOkR0CIKgy6f0cYmgQ3TrUhB0DcJLdOoQRBRUdIjw0iUIPBQFQRB0CTwYhru6rrvrzOthZ3dndWd2Z0Y69N89PO/z/p//+8w7M88jKIpCNhHPKp0jBCClg5TSQbYcyEi+7O5lqaMLyTBPLBBg8uJ5wj9+Z+SAmC4gGYbR1d2DZJgnsbDI9K3bxIMhNQdSqQKkBQdVl69jXV2t5kAyFGLu/l1iwZDmDvwXDvwTDuh2wGptxGKxIcsysVhMe200n8Vkb8Zid2haf9EBk8lEd3cPTU1rCAQW+P79G/39Z+jr68fhsLO8vEQoFGZ29jMPHz4gGo1qCmF0wGw209LSgsvVgc/nw+VqZ2FhEb/fTyKRQBAEZmY+4vV6WFpaYnz8Df39Z3WFMDqQTCYxm0309vaRTCYxGo3Mz89jMBgQRRGv14PL1c7MzEf6+k7R0dGpK4TRgXA4zOvXr/D5fMzNzfHp0yeWl5cxGAz4/X5kWWZy8h2iKHLjxk1crnZdIYwOKIrCxMQbwuEwkUiEcDhMIpFAFEVEUWRxcZHJyXcEAgHu3LmL3W7XFUJzG46NjfLixXOsVitmsxmDwYDRaEQURWKxGF6vB6/Xw9DQdRoaGnSF0OyA0+lEkmRkWUYURRRFQZZlkskkPp+XYDDIwMAgendf84FksVjp7OwiHo8Tj8eRJIl4PE4kEsHtdtPY2ERPz0ndxQEERVGUrOQ5kJF82d3LUkcXkmGeWCDA5MXzhH/8zsgBMZt0zvgLwQda6BHbr6EAAAAASUVORK5CYII=">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vue@3.5.13/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div id="app" class="container mx-auto px-4 py-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">ImageShrink</h1>
+            <p class="text-gray-600">Smart Photo Compressor</p>
+        </header>
+
+        <main class="max-w-2xl mx-auto">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="mb-6">
+                    <label class="block text-gray-700 text-sm font-bold mb-2">
+                        Upload Image
+                    </label>
+                    <div 
+                        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer"
+                        @dragover.prevent
+                        @drop.prevent="handleDrop"
+                        @click="triggerFileInput">
+                        <input 
+                            type="file" 
+                            ref="fileInput" 
+                            class="hidden" 
+                            @change="handleFileSelect"
+                            accept="image/*">
+                        <div v-if="!selectedImage" class="space-y-2">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            <p class="text-gray-500">Drag and drop your image here or click to browse</p>
+                        </div>
+                        <div v-else class="relative">
+                            <img :src="imagePreview" class="max-h-64 mx-auto rounded" alt="Preview">
+                            <button @click.stop="removeImage" class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4" v-if="selectedImage">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Compression Level
+                        </label>
+                        <input 
+                            type="range" 
+                            v-model="compressionLevel" 
+                            min="0" 
+                            max="100" 
+                            class="w-full">
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>High Quality</span>
+                            <span>Small Size</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Output Size
+                        </label>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm text-gray-600">Width (px)</label>
+                                <input 
+                                    type="number" 
+                                    v-model="outputWidth" 
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600">Height (px)</label>
+                                <input 
+                                    type="number" 
+                                    v-model="outputHeight" 
+                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200">
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        @click="processImage" 
+                        class="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
+                        :disabled="processing">
+                        <span v-if="!processing">Compress Image</span>
+                        <span v-else class="flex items-center justify-center">
+                            <svg class="animate-spin h-5 w-5 mr-2" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                            </svg>
+                            Processing...
+                        </span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Download section that appears after processing -->
+            <div v-if="processedImageUrl" class="mt-6 bg-white rounded-lg shadow-lg p-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4">Your Compressed Image</h3>
+                <img :src="processedImageUrl" class="max-h-64 mx-auto rounded mb-4" alt="Compressed Image">
+                <a :href="processedImageUrl" download="compressed-image.jpg" 
+                   class="block w-full bg-green-500 text-white text-center py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">
+                    Download Image
+                </a>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        const { createApp, ref } = Vue;
+
+        createApp({
+            setup() {
+                const fileInput = ref(null);
+                const selectedImage = ref(null);
+                const imagePreview = ref('');
+                const compressionLevel = ref(50);
+                const outputWidth = ref(800);
+                const outputHeight = ref(600);
+                const processing = ref(false);
+                const processedImageUrl = ref('');
+
+                const triggerFileInput = () => {
+                    fileInput.value.click();
+                };
+
+                const handleFileSelect = (event) => {
+                    const file = event.target.files[0];
+                    if (file) {
+                        processSelectedFile(file);
+                    }
+                };
+
+                const handleDrop = (event) => {
+                    const file = event.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        processSelectedFile(file);
+                    }
+                };
+
+                const processSelectedFile = (file) => {
+                    selectedImage.value = file;
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        imagePreview.value = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                };
+
+                const removeImage = () => {
+                    selectedImage.value = null;
+                    imagePreview.value = '';
+                    fileInput.value.value = '';
+                    processedImageUrl.value = '';
+                };
+
+                const processImage = async () => {
+                    processing.value = true;
+                    
+                    try {                        
+                        // Create a canvas element to resize and compress the image
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        
+                        // Create an image element to load the original image
+                        const img = new Image();
+                        img.src = imagePreview.value;
+                        
+                        await new Promise((resolve, reject) => {
+                            img.onload = resolve;
+                            img.onerror = reject;
+                        });
+                        
+                        // Set canvas dimensions to the desired output size
+                        canvas.width = outputWidth.value;
+                        canvas.height = outputHeight.value;
+                        
+                        // Draw the image on the canvas with the new dimensions
+                        ctx.drawImage(img, 0, 0, outputWidth.value, outputHeight.value);
+                        
+                        // Convert compression level (0-100) to quality (0-1)
+                        // Note: For JPEG, higher quality means less compression
+                        const quality = (100 - compressionLevel.value) / 100;
+                        
+                        // Convert the canvas to a compressed image data URL
+                        const compressedImageUrl = canvas.toDataURL('image/jpeg', quality);
+                        
+                        // Set the processed image URL
+                        processedImageUrl.value = compressedImageUrl;
+                    } catch (error) {
+                        console.error('Error processing image:', error);
+                        alert('Error processing image. Please try again.');
+                    } finally {
+                        processing.value = false;
+                    }
+                };
+
+                return {
+                    fileInput,
+                    selectedImage,
+                    imagePreview,
+                    compressionLevel,
+                    outputWidth,
+                    outputHeight,
+                    processing,
+                    processedImageUrl,
+                    triggerFileInput,
+                    handleFileSelect,
+                    handleDrop,
+                    removeImage,
+                    processImage
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
