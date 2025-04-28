@@ -54,6 +54,35 @@
                 <div class="space-y-4" v-if="selectedImage">
                     <div>
                         <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Resize Image
+                        </label>
+                        <div class="flex items-center space-x-2">
+                            <input 
+                                type="checkbox" 
+                                v-model="enableResize" 
+                                class="form-checkbox h-5 w-5 text-blue-600">
+                            <span class="text-gray-700">Enable Resize</span>
+                        </div>
+                    </div>
+
+                    <div v-if="enableResize">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
+                            Resize Percentage
+                        </label>
+                        <input 
+                            type="range" 
+                            v-model="resizePercentage" 
+                            min="10" 
+                            max="100" 
+                            class="w-full">
+                        <div class="flex justify-between text-sm text-gray-600">
+                            <span>10%</span>
+                            <span>100%</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">
                             Compression Level
                         </label>
                         <input 
@@ -131,6 +160,8 @@
                 const outputHeight = ref(600);
                 const processing = ref(false);
                 const processedImageUrl = ref('');
+                const enableResize = ref(false);
+                const resizePercentage = ref(100);
 
                 const triggerFileInput = () => {
                     fileInput.value.click();
@@ -170,11 +201,8 @@
                     processing.value = true;
                     
                     try {                        
-                        // Create a canvas element to resize and compress the image
                         const canvas = document.createElement('canvas');
                         const ctx = canvas.getContext('2d');
-                        
-                        // Create an image element to load the original image
                         const img = new Image();
                         img.src = imagePreview.value;
                         
@@ -182,22 +210,23 @@
                             img.onload = resolve;
                             img.onerror = reject;
                         });
+
+                        let width = outputWidth.value;
+                        let height = outputHeight.value;
+
+                        if (enableResize.value) {
+                            const scale = resizePercentage.value / 100;
+                            width = Math.round(img.width * scale);
+                            height = Math.round(img.height * scale);
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
                         
-                        // Set canvas dimensions to the desired output size
-                        canvas.width = outputWidth.value;
-                        canvas.height = outputHeight.value;
-                        
-                        // Draw the image on the canvas with the new dimensions
-                        ctx.drawImage(img, 0, 0, outputWidth.value, outputHeight.value);
-                        
-                        // Convert compression level (0-100) to quality (0-1)
-                        // Note: For JPEG, higher quality means less compression
                         const quality = (100 - compressionLevel.value) / 100;
-                        
-                        // Convert the canvas to a compressed image data URL
                         const compressedImageUrl = canvas.toDataURL('image/jpeg', quality);
                         
-                        // Set the processed image URL
                         processedImageUrl.value = compressedImageUrl;
                     } catch (error) {
                         console.error('Error processing image:', error);
@@ -216,6 +245,8 @@
                     outputHeight,
                     processing,
                     processedImageUrl,
+                    enableResize,
+                    resizePercentage,
                     triggerFileInput,
                     handleFileSelect,
                     handleDrop,
